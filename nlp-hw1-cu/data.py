@@ -15,7 +15,7 @@ nltk.download("webtext")
 nltk.download("reuters")
 
 
-# Load the corpora Example
+# Load the corpora Example no need to run this
 from nltk.corpus import brown, webtext, reuters
 brown_corpus = brown.sents()
 brown_corpus = [" ".join(sentence) for sentence in brown_corpus]
