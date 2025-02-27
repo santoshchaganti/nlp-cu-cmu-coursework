@@ -1,0 +1,3 @@
+[submodule "anlp-spring2025-code"]
+	path = anlp-spring2025-code
+	url = https://github.com/cmu-l3/anlp-spring2025-code.git
