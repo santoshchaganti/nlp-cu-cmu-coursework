@@ -4,7 +4,6 @@ Created: 2025-01-27
 Updated: 2025-02-08
 Author: Rama Chaganti
 
-
 This module implements a trigram language model using Brown corpus.
 It provides functionality to find trigrams, calculate conditional probabilities,
 and predict next words in sequences.
