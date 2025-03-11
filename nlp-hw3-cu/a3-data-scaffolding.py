@@ -33,7 +33,13 @@ lemmatizer = WordNetLemmatizer()
 
 def preprocess(text : str) -> list:
     # your code here
-    pass
+    text = text.lower()
+    text = re.sub(r'[^\w\s]', '', text)
+    tokens = nltk.word_tokenize(text)
+    lemmatized_tokens = [lemmatizer.lemmatize(token) for token in tokens]
+    tokens = [token for token in lemmatized_tokens if token.strip()]
+    return tokens
+    
 
 # Preprocess all documents
 preprocessed_documents = reviews['review'].apply(preprocess)
@@ -47,7 +53,10 @@ index = 1 # reserve 0 for padding
 for document in preprocessed_documents:
     for token in document:
         # build the dictionaries, your code here
-        pass
+        if token not in token2index:
+            token2index[token] = index
+            index2token[index] = token
+            index += 1
 
 token2index['[PAD]'] = 0
 index2token[0] = '[PAD]'
@@ -63,8 +72,9 @@ print(sequences.head()) # should now be a list of indices
 
 # Truncate the sequences
 def pad_sequence(sequence: list, max_length: int, padding_token: int = 0) -> list:
-    # your code here
-    pass
+    if len(sequence) > max_length:
+        return sequence[:max_length]
+    return sequence + [padding_token] * (max_length - len(sequence))
 
 # Maximum sequence length
 max_length = 40

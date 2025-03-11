@@ -28,7 +28,11 @@ class Net(nn.Module):
         x = self.embedding(x)
         x = torch.mean(x, dim=1) # take the mean of the embeddings
         # finish the code for the forward pass
-        pass
+        x = self.linear1(x)
+        x = self.activation(x)
+        x = self.linear2(x)
+        x = self.sigmoid(x)
+        return x
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -73,12 +77,23 @@ early_stopper = EarlyStopper(3,0.01)
 
 # Train the model
 for epoch in range(num_epochs):
+    model.train()
+    epoch_loss = 0
 
     for i, batch in enumerate(train_loader):
         model.train()
         # your code here: call the forward pass,
         # compute the loss, and update the model
-        pass
+        inputs, targets = batch
+        targets = targets.float().unsqueeze(1)
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item()
+    
+    avg_train_loss = epoch_loss / len(train_loader)
 
     # Validation
     model.eval()
@@ -86,17 +101,21 @@ for epoch in range(num_epochs):
     # Extract the input and target variables from each validation batch
     for input_, target in val_loader:
         with torch.no_grad():
-            # your code here: call the forward pass and compute
-            # the loss on the validation set. Add it to val_losses
-            # to compute the average loss for the entire validation set
-            pass
+            targets = target.float().unsqueeze(1)
+            outputs = model(input_)
+            loss = criterion(outputs, targets)
+            val_losses.append(loss.item())
     val_loss = sum(val_losses) / len(val_losses)
     if early_stopper.early_stop(val_loss):
+        print("Early stopping Triggered")
         break
+    
+    print(f"Epoch {epoch + 1} /{num_epochs}")
 
-    print('training loss: %.4f' % loss.item()) # Please print the training and validation loss to ensure 
+    print('training loss: %.4f' % avg_train_loss) # Please print the training and validation loss to ensure 
                                                # you're meeting the criteria specified in the writeup
     print('validation loss: %.4f' % val_loss)
+
 
 
 #################### Evaluation ####################
@@ -104,6 +123,7 @@ for epoch in range(num_epochs):
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Evaluate the model
+model.eval()
 for batch in test_loader:
     test_inputs, test_targets = batch
 with torch.no_grad():
@@ -128,3 +148,68 @@ embedding_matrix = torch.zeros(len(token2index), embedding_dim)
 for token, index in token2index.items():
     if token in word_vectors:
         embedding_matrix[index] = torch.tensor(word_vectors[token])
+        
+pretrained_model = Net(
+    input_size=d,
+    output_size=1,
+    hidden_size=h,
+    num_embeddings=len(token2index),
+    embedding_dim=d,
+    padding_idx=0, pretrained_embeddings=embedding_matrix, freeze_embeddings=False)
+
+criterion = nn.BCELoss()
+optimizer = torch.optim.Adam(pretrained_model.parameters(), lr=learning_rate)
+early_stopper = EarlyStopper(3,0.01)
+
+print("\nTraining with GloVe embeddings:")
+for epoch in range(num_epochs):
+    pretrained_model.train()
+    epoch_loss = 0
+    for i, batch in enumerate(train_loader):
+        inputs, targets = batch
+        targets = targets.float().unsqueeze(1)
+        optimizer.zero_grad()
+        outputs = pretrained_model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item()
+    
+    avg_train_loss = epoch_loss / len(train_loader)
+    
+    # Validation
+    pretrained_model.eval()
+    val_losses = []
+    for input_, target in val_loader:
+        with torch.no_grad():
+            targets = target.float().unsqueeze(1)
+            outputs = pretrained_model(input_)
+            loss = criterion(outputs, targets)
+            val_losses.append(loss.item())
+    val_loss = sum(val_losses) / len(val_losses)
+    if early_stopper.early_stop(val_loss):
+        print("Early stopping Triggered")
+        break
+    
+    print(f"Epoch {epoch + 1} /{num_epochs}")
+    print('training loss: %.4f' % avg_train_loss)
+    print('validation loss: %.4f' % val_loss)
+
+
+
+pretrained_model.eval()
+for batch in test_loader:
+    test_inputs, test_targets = batch
+    with torch.no_grad():
+        test_outputs = pretrained_model(test_inputs)
+
+predictions = test_outputs.view(-1)
+predictions = torch.tensor([1 if x >= 0.5 else 0 for x in predictions])
+print(f'accuracy: {accuracy_score(test_targets, predictions)}')
+print(f'precision: {precision_score(test_targets, predictions)}')
+print(f'recall: {recall_score(test_targets, predictions)}')
+print(f'f1: {f1_score(test_targets, predictions)}')
+
+
+trained_embeddings = pretrained_model.embedding.weight.data.cpu().numpy()
+pretrained_embeddings = pretrained_model.embedding.weight.data.cpu().numpy()
